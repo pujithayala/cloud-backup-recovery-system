@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+.hash-font {
+  font-family: 'JetBrains Mono', monospace;
+}
+

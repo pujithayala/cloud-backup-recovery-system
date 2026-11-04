@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudBackup Enterprise | Automated Backup & Disaster Recovery</title>
+  <!-- Google Fonts Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            },
+            accent: {
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              rose: '#f43f5e',
+              indigo: '#6366f1',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars and transitions */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    .hash-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans bg-slate-950 text-slate-100 antialiased overflow-hidden">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- AUTH OVERLAY MODAL (Shown when not authenticated) -->
+  <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 transition-opacity duration-200">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-8 shadow-2xl border border-slate-800 bg-slate-900/90 relative">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold tracking-tight text-white">CloudBackup Enterprise</h2>
+          <p class="text-xs text-slate-400">Resilient Storage & Cryptographic Recovery</p>
+        </div>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="flex border-b border-slate-800 mb-6">
+        <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 pb-3 text-sm font-semibold border-b-2 border-blue-500 text-blue-400 text-center transition">Sign In</button>
+        <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 pb-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 text-center transition">Register</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+          <input type="email" id="login-email" required value="admin@cloud.io" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-100 focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Password</label>
+          <input type="password" id="login-password" required value="Password123!" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-100 focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <button type="submit" id="btn-login-submit" class="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 font-semibold text-white text-sm shadow-lg shadow-blue-600/30 transition flex items-center justify-center space-x-2">
+          <span>Authenticate & Access Console</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+        <div class="pt-2 text-center">
+          <button type="button" onclick="fillDemoUser()" class="text-xs text-blue-400 hover:underline">Auto-fill Demo Credentials</button>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Full Name</label>
+          <input type="text" id="reg-name" required placeholder="Alice Watson" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-100 focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+          <input type="email" id="reg-email" required placeholder="alice@example.com" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-100 focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Password (min 6 characters)</label>
+          <input type="password" id="reg-password" required minlength="6" placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-100 focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <button type="submit" id="btn-reg-submit" class="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 font-semibold text-white text-sm shadow-lg shadow-blue-600/30 transition flex items-center justify-center space-x-2">
+          <span>Create Enterprise Account</span>
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP WRAPPER -->
+  <div id="app-wrapper" class="flex-1 flex flex-col h-full overflow-hidden">
+
+    <!-- TOP HEADER -->
+    <header class="h-16 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-6 flex items-center justify-between z-20 shrink-0">
+      <div class="flex items-center space-x-4">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <i data-lucide="cloud" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-slate-100 tracking-tight text-base">CloudBackup Enterprise</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center space-x-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>ONLINE</span>
+            </span>
+          </div>
+          <span class="text-xs text-slate-400 block -mt-0.5">S3/MinIO Object Storage • SHA-256 Engine</span>
+        </div>
+      </div>
+
+      <!-- Header Right Controls -->
+      <div class="flex items-center space-x-5">
+        <!-- Storage Quota Bar -->
+        <div class="hidden md:flex flex-col w-48 text-right">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Storage Used</span>
+            <span id="header-quota-text" class="font-mono text-slate-200">0 MB / 10 GB</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div id="header-quota-bar" class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: 2%"></div>
+          </div>
+        </div>
+
+        <!-- Notification Bell Dropdown -->
+        <div class="relative">
+          <button onclick="toggleNotificationDropdown()" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 relative border border-slate-700/60 transition">
+            <i data-lucide="bell" class="w-4 h-4"></i>
+            <span id="unread-badge" class="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center hidden">0</span>
+          </button>
+
+          <!-- Notification Menu -->
+          <div id="notification-dropdown" class="absolute right-0 mt-2 w-80 glass-panel rounded-xl shadow-2xl p-4 hidden z-50 border border-slate-800">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+              <span class="font-semibold text-sm text-slate-100">Notifications</span>
+              <button onclick="markAllNotificationsRead()" class="text-xs text-blue-400 hover:text-blue-300">Mark all as read</button>
+            </div>
+            <div id="notification-list" class="max-h-64 overflow-y-auto divide-y divide-slate-800/60 text-xs py-2">
+              <p class="text-slate-500 text-center py-4">No notifications yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- User profile & Sign Out -->
+        <div class="flex items-center space-x-3 pl-3 border-l border-slate-800">
+          <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-semibold text-blue-400 uppercase" id="user-avatar-initials">
+            U
+          </div>
+          <div class="hidden sm:block text-left">
+            <div id="header-user-name" class="text-xs font-medium text-slate-200 leading-tight">Admin User</div>
+            <div id="header-user-email" class="text-[11px] text-slate-400">admin@cloud.io</div>
+          </div>
+          <button onclick="handleLogout()" title="Sign Out" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800/60 transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- BODY CONTAINER (SIDEBAR + MAIN CONTENT) -->
+    <div class="flex-1 flex overflow-hidden">
+
+      <!-- SIDEBAR NAVIGATION -->
+      <aside class="w-64 border-r border-slate-800 bg-slate-900/50 flex flex-col justify-between shrink-0 p-4">
+        <nav class="space-y-1.5">
+          <button onclick="navigateView('dashboard')" id="nav-dashboard" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-blue-400 bg-blue-600/10 border border-blue-500/20 transition">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Dashboard</span>
+          </button>
+
+          <button onclick="navigateView('files')" id="nav-files" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent transition">
+            <i data-lucide="folder" class="w-4 h-4"></i>
+            <span>Files & Storage</span>
+          </button>
+
+          <button onclick="navigateView('backups')" id="nav-backups" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent transition">
+            <i data-lucide="archive" class="w-4 h-4"></i>
+            <span>Backup Snapshots</span>
+          </button>
+
+          <button onclick="navigateView('integrity')" id="nav-integrity" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent transition">
+            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+            <span>Integrity & Versions</span>
+          </button>
+
+          <button onclick="navigateView('schedules')" id="nav-schedules" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent transition">
+            <i data-lucide="clock" class="w-4 h-4"></i>
+            <span>Schedules & Automation</span>
+          </button>
+
+          <button onclick="navigateView('recovery')" id="nav-recovery" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent transition">
+            <i data-lucide="history" class="w-4 h-4"></i>
+            <span>Recovery Audit Logs</span>
+          </button>
+        </nav>
+
+        <!-- Sidebar Footer Status Card -->
+        <div class="glass-panel rounded-xl p-3.5 border border-slate-800/80 text-xs">
+          <div class="flex items-center space-x-2 text-slate-300 font-medium mb-1">
+            <i data-lucide="server" class="w-3.5 h-3.5 text-blue-400"></i>
+            <span>Storage Driver</span>
+          </div>
+          <div class="text-[11px] text-slate-400">
+            Engine: <span class="text-slate-200 font-mono">MinIO / S3</span><br>
+            Verification: <span class="text-emerald-400 font-mono">SHA-256 Active</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT WRAPPER -->
+      <main class="flex-1 overflow-y-auto bg-slate-950 p-6 md:p-8">
+
+        <!-- 1. DASHBOARD VIEW -->
+        <section id="view-dashboard" class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-100 tracking-tight">System Overview</h1>
+              <p class="text-xs text-slate-400 mt-0.5">Real-time health, storage metrics, and snapshot activity</p>
+            </div>
+            <div class="flex items-center space-x-3">
+              <button onclick="loadDashboardData()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center space-x-1.5">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                <span>Refresh</span>
+              </button>
+              <button onclick="openNewBackupModal()" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition flex items-center space-x-1.5">
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                <span>Create Backup</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 KPI Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Files Tracked</span>
+                <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                  <i data-lucide="files" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="mt-4">
+                <span id="kpi-files-count" class="text-2xl font-bold text-white font-mono">0</span>
+                <span class="text-xs text-slate-400 block mt-0.5">Registered file metadata</span>
+              </div>
+            </div>
+
+            <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Storage Consumed</span>
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                  <i data-lucide="hard-drive" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="mt-4">
+                <div class="flex items-baseline space-x-2">
+                  <span id="kpi-storage-consumed" class="text-2xl font-bold text-white font-mono">0 MB</span>
+                  <span id="kpi-storage-percent" class="text-xs font-semibold text-blue-400">(0%)</span>
+                </div>
+                <span id="kpi-storage-quota" class="text-xs text-slate-400 block mt-0.5">of 10.00 GB available</span>
+              </div>
+            </div>
+
+            <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Backup Success Rate</span>
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                  <i data-lucide="check-circle" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="mt-4">
+                <span id="kpi-success-rate" class="text-2xl font-bold text-emerald-400 font-mono">100%</span>
+                <span id="kpi-backup-ratio" class="text-xs text-slate-400 block mt-0.5">0 passed / 0 failed</span>
+              </div>
+            </div>
+
+            <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Active Automations</span>
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                  <i data-lucide="calendar" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="mt-4">
+                <span id="kpi-active-schedules" class="text-2xl font-bold text-amber-400 font-mono">0</span>
+                <span class="text-xs text-slate-400 block mt-0.5">Automated cron workers</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity Chart & Quick Actions -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 glass-panel p-5 rounded-2xl border border-slate-800">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="font-semibold text-sm text-slate-100">7-Day Backup & Recovery Operations</h3>
+                  <p class="text-xs text-slate-400">Volume and event frequency trends</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700">Past 7 Days</span>
+              </div>
+              <div class="h-64 relative">
+                <canvas id="activityChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Recent Backups List -->
+            <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-sm text-slate-100">Recent Backups</h3>
+                <button onclick="navigateView('backups')" class="text-xs text-blue-400 hover:text-blue-300">View All</button>
+              </div>
+              <div id="dashboard-recent-backups" class="flex-1 overflow-y-auto space-y-2.5">
+                <p class="text-slate-500 text-xs py-4 text-center">No backup runs recorded yet.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. FILES & STORAGE VIEW -->
+        <section id="view-files" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Files & Storage Explorer</h1>
+              <p class="text-xs text-slate-400 mt-0.5">Manage source files, upload directories, and version attachments</p>
+            </div>
+            <div class="flex items-center space-x-3">
+              <button onclick="openUploadModal()" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition flex items-center space-x-1.5">
+                <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+                <span>Upload Files</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Search and Filters -->
+          <div class="glass-panel p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div class="relative w-full sm:w-80">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" id="file-search-input" oninput="debounceFileSearch()" placeholder="Search files by name..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+            </div>
+            <button onclick="loadFilesData()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Refresh Files</span>
+            </button>
+          </div>
+
+          <!-- Files Table -->
+          <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Filename</th>
+                  <th class="py-3 px-4">Folder Path</th>
+                  <th class="py-3 px-4">Content Type</th>
+                  <th class="py-3 px-4">Size</th>
+                  <th class="py-3 px-4">Uploaded</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="files-table-body" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="6" class="py-8 text-center text-slate-500">Loading files...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 3. BACKUP SNAPSHOTS VIEW -->
+        <section id="view-backups" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Backup Snapshots</h1>
+              <p class="text-xs text-slate-400 mt-0.5">Immutable cloud backups with encrypted hashes and version snapshots</p>
+            </div>
+            <div class="flex items-center space-x-3">
+              <button onclick="openNewBackupModal()" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition flex items-center space-x-1.5">
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                <span>Create New Backup</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Backups Table -->
+          <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Backup Name</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4">Files</th>
+                  <th class="py-3 px-4">Total Size</th>
+                  <th class="py-3 px-4">Started</th>
+                  <th class="py-3 px-4">Completed</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="backups-table-body" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="7" class="py-8 text-center text-slate-500">Loading backups...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 4. INTEGRITY & VERSIONS VIEW -->
+        <section id="view-integrity" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Cryptographic Integrity Center</h1>
+              <p class="text-xs text-slate-400 mt-0.5">Audit SHA-256 signatures, detect bit rot/corruption, and restore point-in-time snapshots</p>
+            </div>
+            <button onclick="loadIntegrityData()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Refresh Versions</span>
+            </button>
+          </div>
+
+          <!-- Integrity Overview Card -->
+          <div class="glass-panel p-5 rounded-2xl border border-slate-800 bg-gradient-to-r from-blue-950/40 to-slate-900/80">
+            <div class="flex items-start space-x-4">
+              <div class="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <i data-lucide="shield-check" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h3 class="font-semibold text-slate-100 text-sm">SHA-256 Zero-Tamper Verification Protocol</h3>
+                <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Every version backed up to cloud object storage is immutably hashed with SHA-256 upon ingestion.
+                  Before any restoration takes place, the recovery engine streams the stored blob, recalculates the cryptographic digest, and confirms byte-for-byte fidelity.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Versions Table -->
+          <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">File Name</th>
+                  <th class="py-3 px-4">Version</th>
+                  <th class="py-3 px-4">Stored SHA-256 Digest</th>
+                  <th class="py-3 px-4">Payload Size</th>
+                  <th class="py-3 px-4">Integrity Status</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="versions-table-body" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="6" class="py-8 text-center text-slate-500">Loading version catalog...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 5. SCHEDULES & AUTOMATION VIEW -->
+        <section id="view-schedules" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Schedules & Automation</h1>
+              <p class="text-xs text-slate-400 mt-0.5">Recurring background workers for autonomous cloud replication</p>
+            </div>
+            <button onclick="openNewScheduleModal()" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition flex items-center space-x-1.5">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+              <span>Create Schedule</span>
+            </button>
+          </div>
+
+          <!-- Schedules Table -->
+          <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Schedule Name</th>
+                  <th class="py-3 px-4">Frequency</th>
+                  <th class="py-3 px-4">Target Directory</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4">Last Run</th>
+                  <th class="py-3 px-4">Next Run</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="schedules-table-body" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="7" class="py-8 text-center text-slate-500">Loading schedules...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 6. RECOVERY AUDIT LOGS VIEW -->
+        <section id="view-recovery" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Recovery Audit Logs</h1>
+              <p class="text-xs text-slate-400 mt-0.5">Tamper-evident log of all restoration and integrity verification operations</p>
+            </div>
+            <button onclick="loadRecoveryHistory()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Refresh Logs</span>
+            </button>
+          </div>
+
+          <!-- Recovery Logs Table -->
+          <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Recovered At</th>
+                  <th class="py-3 px-4">Target File & Version</th>
+                  <th class="py-3 px-4">Destination Path</th>
+                  <th class="py-3 px-4">Checksum Verified</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4">Diagnostics</th>
+                </tr>
+              </thead>
+              <tbody id="recovery-table-body" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="6" class="py-8 text-center text-slate-500">Loading recovery logs...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+
+  <!-- 1. CREATE BACKUP MODAL -->
+  <div id="modal-new-backup" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 hidden">
+    <div class="glass-panel max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-800 bg-slate-900">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base text-slate-100">Create New Backup Snapshot</h3>
+        <button onclick="closeModal('modal-new-backup')" class="text-slate-400 hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="handleCreateBackup(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Backup Name</label>
+          <input type="text" id="backup-name-input" required placeholder="e.g. Q4 Financials Snapshot" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Description (Optional)</label>
+          <textarea id="backup-desc-input" rows="2" placeholder="Notes regarding this snapshot..." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-blue-500"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Select Files to Include</label>
+          <div id="backup-files-checklist" class="max-h-48 overflow-y-auto border border-slate-800 rounded-lg p-2 space-y-1.5 bg-slate-950/60 text-xs">
+            <p class="text-slate-500 text-center py-3">Loading available files...</p>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modal-new-backup')" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium">Cancel</button>
+          <button type="submit" id="btn-create-backup-submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30">Take Snapshot</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. UPLOAD FILES MODAL -->
+  <div id="modal-upload" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 hidden">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-800 bg-slate-900">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base text-slate-100">Upload Files to Cloud Storage</h3>
+        <button onclick="closeModal('modal-upload')" class="text-slate-400 hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="handleUploadSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Target Folder Path</label>
+          <input type="text" id="upload-folder-input" value="/documents" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Select Files</label>
+          <input type="file" id="upload-files-input" multiple required class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
+        </div>
+        <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modal-upload')" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium">Cancel</button>
+          <button type="submit" id="btn-upload-submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30">Upload Files</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. CREATE SCHEDULE MODAL -->
+  <div id="modal-schedule" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 hidden">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-800 bg-slate-900">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base text-slate-100">Create Backup Schedule</h3>
+        <button onclick="closeModal('modal-schedule')" class="text-slate-400 hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="handleCreateSchedule(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Schedule Name</label>
+          <input type="text" id="sched-name" required placeholder="Nightly Auto Backup" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Frequency</label>
+          <select id="sched-freq" onchange="toggleCustomCronInput()" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+            <option value="DAILY">Daily (At 2:00 AM UTC)</option>
+            <option value="WEEKLY">Weekly (Sundays at 2:00 AM UTC)</option>
+            <option value="MONTHLY">Monthly (1st of month at 2:00 AM UTC)</option>
+            <option value="CUSTOM">Custom Cron Expression</option>
+          </select>
+        </div>
+        <div id="sched-custom-cron-box" class="hidden">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Custom Cron Expression</label>
+          <input type="text" id="sched-cron" placeholder="0 0/30 * * * ?" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500">
+          <span class="text-[10px] text-slate-400 mt-1 block">Spring Cron 6-part format: sec min hr dom mon dow</span>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Target Directory</label>
+          <input type="text" id="sched-target" value="/" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modal-schedule')" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30">Save Schedule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. INTEGRITY CHECK RESULTS MODAL -->
+  <div id="modal-integrity-result" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 hidden">
+    <div class="glass-panel max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-800 bg-slate-900">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base text-slate-100 flex items-center space-x-2">
+          <i data-lucide="shield-check" class="w-5 h-5 text-blue-400"></i>
+          <span>Cryptographic Verification Diagnostics</span>
+        </h3>
+        <button onclick="closeModal('modal-integrity-result')" class="text-slate-400 hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="integrity-result-content" class="space-y-4 text-xs">
+        <!-- Injected via JavaScript -->
+      </div>
+      <div class="flex justify-end pt-4 border-t border-slate-800">
+        <button onclick="closeModal('modal-integrity-result')" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs text-white font-semibold">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. RESTORE MODAL -->
+  <div id="modal-restore" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 hidden">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-800 bg-slate-900">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base text-slate-100 flex items-center space-x-2">
+          <i data-lucide="rotate-ccw" class="w-5 h-5 text-emerald-400"></i>
+          <span>Restore Point-in-Time Snapshot</span>
+        </h3>
+        <button onclick="closeModal('modal-restore')" class="text-slate-400 hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="handleExecuteRestore(event)" class="space-y-4">
+        <input type="hidden" id="restore-version-id">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Target Version to Restore</label>
+          <div id="restore-version-label" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-slate-200"></div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Destination Restoration Path</label>
+          <input type="text" id="restore-destination-input" value="/recovered" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+        </div>
+        <p class="text-[11px] text-slate-400">
+          Pre-flight check: SHA-256 hash will be verified against cloud storage before write authorization.
+        </p>
+        <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modal-restore')" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium">Cancel</button>
+          <button type="submit" id="btn-restore-submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/30">Authorize & Restore</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Load JavaScript Application Module -->
+  <script src="app.js"></script>
+</body>
+</html>
+

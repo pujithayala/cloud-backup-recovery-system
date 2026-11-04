@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: cloudbackup-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cloud_backup_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloud_backup_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. MinIO S3 Object Storage
+  minio:
+    image: minio/minio:RELEASE.2024-09-22T00-33-43Z
+    container_name: cloudbackup-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+    ports:
+      - "9000:9000" # MinIO API
+      - "9001:9001" # Web Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 3. MinIO Bucket Initialization Helper
+  createbuckets:
+    image: minio/mc:latest
+    container_name: cloudbackup-mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadminpassword;
+      /usr/bin/mc mb myminio/cloud-backups || true;
+      /usr/bin/mc anonymous set download myminio/cloud-backups || true;
+      exit 0;
+      "
+
+  # 4. Spring Boot Backend Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudbackup-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: cloud_backup_db
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+      MINIO_BUCKET: cloud-backups
+      MINIO_REGION: us-east-1
+      APP_JWT_SECRET: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+    volumes:
+      - backend_storage:/app/data/cloud-storage
+
+  # 5. Frontend Dashboard Client
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloudbackup-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
+  backend_storage:
+    driver: local
+
