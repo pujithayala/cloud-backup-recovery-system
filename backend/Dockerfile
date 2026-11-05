@@ -7,7 +7,7 @@ WORKDIR /workspace
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source code and build production jar
+# Copy source code and build production ja
 COPY src src
 RUN mvn clean package -DskipTests -B
 
