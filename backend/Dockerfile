@@ -25,7 +25,7 @@ USER appuser
 COPY --from=builder /workspace/target/cloud-backup-backend-1.0.0.jar app.jar
 
 ENV SPRING_PROFILES_ACTIVE=prod \
-    JAVA_OPTS= "-Xms128m -Xmx256m -XX:+UseG1GC"
+    JAVA_OPTS="-Xms128m -Xmx256m -XX:+UseG1GC"
 
 EXPOSE 8080
 
